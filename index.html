@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS Estimation – Concrete (ELM)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+  :root {
+    --navy:       #1a4f8a;
+    --navy-mid:   #15407a;
+    --teal:       #c8411b;
+    --teal-light: #f5d0c6;
+    --amber:      #e8984a;
+    --green:      #1e7a3e;
+    --red:        #c8411b;
+    --bg:         #f0ede8;
+    --white:      #ffffff;
+    --border:     #c8c2b8;
+    --text:       #1c1a17;
+    --muted:      #6b6560;
+    --mono: Arial, Helvetica, sans-serif;
+    --sans: Arial, Helvetica, sans-serif;
+    --display: Arial, Helvetica, sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin:0; padding:0; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ─────────────────────────────────── */
+  header {
+    background: var(--navy);
+    color: #fff;
+    padding: 12px 24px 10px;
+    display: flex;
+    align-items: flex-start;
+    gap: 18px;
+    border-bottom: 3px solid var(--teal);
+  }
+  .header-badge {
+    background: var(--teal);
+    color: var(--navy);
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    padding: 4px 10px;
+    border-radius: 2px;
+    margin-top: 4px;
+    white-space: nowrap;
+  }
+  header h1 {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #fff;
+    line-height: 1.3;
+  }
+  header p {
+    font-size: 0.75rem;
+    color: #b8cce0;
+    margin-top: 3px;
+    font-family: var(--mono);
+    letter-spacing: 0.04em;
+  }
+  .header-right { margin-left: auto; text-align: right; }
+  .header-right span { font-family: var(--mono); font-size: 0.68rem; color: #b8cce0; display:block; }
+
+  /* ── MAIN LAYOUT ─────────────────────────────── */
+  main { max-width: 980px; margin: 0 auto; padding: 10px 12px 24px; }
+
+  /* ── CARD ────────────────────────────────────── */
+  .card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  .card-header {
+    background: var(--navy);
+    color: #fff;
+    padding: 6px 14px;
+    font-family: var(--mono);
+    font-size: 0.70rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .card-header .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--teal);
+    flex-shrink: 0;
+  }
+  .card-body { padding: 10px 14px; }
+
+  /* ── INPUT GRID ──────────────────────────────── */
+  .section-label {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--teal);
+    border-bottom: 1px solid var(--teal-light);
+    padding-bottom: 2px;
+    margin-bottom: 6px;
+    margin-top: 2px;
+  }
+  .param-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px 10px;
+  }
+  .param-group {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .param-group label {
+    font-size: 0.68rem;
+    font-weight: 500;
+    color: var(--muted);
+    font-family: var(--mono);
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  .param-group .unit {
+    font-size: 0.60rem;
+    color: #b0a89e;
+    font-family: var(--mono);
+  }
+  input[type="number"], select {
+    width: 100px;
+    font-family: var(--mono);
+    font-size: 0.80rem;
+    color: var(--text);
+    background: #faf9f7;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 5px 8px;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    -moz-appearance: textfield;
+  }
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+  input[type="number"]:focus, select:focus {
+    border-color: var(--teal);
+    box-shadow: 0 0 0 3px rgba(200,65,27,0.12);
+    background: #fff;
+  }
+  input[type="number"].out-of-range { border-color: var(--amber); background: #FFF8F0; }
+  input[type="number"].valid { border-color: #7cc49a; }
+  input[readonly] {
+    background: #edf7f1;
+    color: #1e7a3e;
+    font-weight: 500;
+    cursor: not-allowed;
+    border-color: #7cc49a;
+  }
+  .hint { font-size: 0.58rem; color: #b0a89e; font-family: var(--mono); margin-top: 1px; }
+
+  /* ── PREDICTION COLUMNS ──────────────────────── */
+  .prediction-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-top: 10px;
+  }
+  .model-select-group { display: flex; flex-direction: column; gap: 4px; }
+  .model-select-group label {
+    font-size: 0.68rem; font-family: var(--mono); color: var(--teal); font-weight: 500;
+    letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  select { width: 100%; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236B6560'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; padding-right: 24px; }
+
+
+
+  /* ── TWO COLUMN PANELS ───────────────────────── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* ── BUTTONS ─────────────────────────────────── */
+  .btn {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 7px 14px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-primary { background: var(--navy); color: #fff; }
+  .btn-primary:hover { background: var(--navy-mid); }
+  .btn-teal { background: var(--teal); color: var(--navy); }
+  .btn-teal:hover { opacity: 0.88; }
+  .btn-outline { background: #fff; color: var(--navy); border: 1px solid var(--border); }
+  .btn-outline:hover { border-color: var(--teal); color: var(--teal); }
+  .btn-sm { padding: 5px 10px; font-size: 0.65rem; }
+  .btn-group { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+  /* ── DATASET GRID (CBR-style) ────────────────── */
+  .ds-grid {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 8px 12px;
+    align-items: center;
+  }
+  .ds-label { font-size: 0.76rem; color: var(--muted); font-weight: 500; white-space: nowrap; }
+  .ds-filename {
+    font-family: var(--mono);
+    font-size: 0.70rem;
+    color: var(--navy);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+
+  /* ── METRICS (CBR stat-box style) ────────────── */
+  .metric-row { display: flex; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
+  .metric-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #f4f2ef;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 5px 10px;
+  }
+  .metric-box .m-label { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); white-space: nowrap; }
+  .metric-box .m-value {
+    font-family: var(--mono); font-size: 0.78rem; font-weight: 600;
+    color: var(--green); background: #edf7f1;
+    border: 1px solid #7cc49a; border-radius: 2px;
+    padding: 2px 8px; min-width: 60px; text-align: center;
+  }
+
+  /* ── STATUS BAR ──────────────────────────────── */
+  .status-bar {
+    font-family: var(--mono);
+    font-size: 0.70rem;
+    padding: 5px 10px;
+    border-radius: 4px;
+    margin-top: 6px;
+    border-left: 3px solid var(--teal);
+    background: #f0ede8;
+    color: var(--navy);
+    min-height: 30px;
+    transition: all 0.2s;
+  }
+  .status-bar.ok  { border-color: var(--green); background: #edf7f1; color: #1e7a3e; }
+  .status-bar.err { border-color: var(--red);   background: #FEF2F2; color: #B91C1C; }
+  .status-bar.warn { border-color: var(--amber); background: #FFF8F0; color: #92400E; }
+
+  /* ── NOTES ───────────────────────────────────── */
+  .notes-body { font-size: 0.76rem; line-height: 1.7; color: var(--muted); }
+  .notes-body strong { color: var(--navy); }
+  .notes-body ol { padding-left: 18px; }
+  .notes-body li { margin-bottom: 4px; }
+
+  /* ── TABLE ───────────────────────────────────── */
+  .result-table-wrap { max-height: 220px; overflow-y: auto; margin-top: 10px; border: 1px solid var(--border); border-radius: 4px; }
+  table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 0.70rem; }
+  thead th { background: var(--navy); color: #fff; padding: 6px 10px; text-align: right; font-weight: 400; letter-spacing: 0.06em; position: sticky; top:0; }
+  thead th:first-child { text-align: left; }
+  tbody tr:nth-child(even) { background: #f4f2ef; }
+  tbody td { padding: 5px 10px; text-align: right; border-bottom: 1px solid #e8e4de; }
+  tbody td:first-child { text-align: left; color: var(--muted); }
+
+  /* ── CITATION ────────────────────────────────── */
+  .citation { font-size: 0.72rem; color: var(--muted); font-family: var(--mono); line-height: 1.6; }
+  .citation a { color: var(--teal); text-decoration: none; }
+  .citation a:hover { text-decoration: underline; }
+
+  /* ── RANGE TABLE ─────────────────────────────── */
+  .range-pill {
+    display: inline-block;
+    background: #f4f2ef;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.58rem;
+    padding: 1px 5px;
+    border-radius: 10px;
+    border: 1px solid #e0d8d0;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 680px) {
+    .param-grid { grid-template-columns: repeat(2, 1fr); }
+    .two-col, .prediction-row { grid-template-columns: 1fr; }
+    header { flex-wrap: wrap; }
+    .header-right { margin-left: 0; text-align: left; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Compressive Strength Estimation</h1>
+    <p>Concrete · Extreme Learning Machine</p>
+  </div>
+</header>
+
+<main>
+
+<div style="display:grid; grid-template-columns:1fr 340px; gap:12px; align-items:stretch;">
+
+<!-- LEFT COLUMN -->
+<div style="display:flex; flex-direction:column;">
+
+<div class="card" style="flex:1; margin-bottom:0;">
+  <div class="card-header"><div class="dot"></div>Single Set of Input Parameters</div>
+  <div class="card-body">
+    <div style="display:grid; grid-template-columns:repeat(5, minmax(100px, max-content)); gap:4px 10px; align-items:start; margin-bottom:6px;">
+
+      <div class="section-label" style="grid-column:1/-1;">Binder</div>
+      <div class="param-group"><label>Cement <span class="unit">kg/m³</span></label><input type="number" id="c" placeholder="215–533" step="any" min="215" max="533"></div>
+      <div class="param-group"><label>VSA <span class="unit">kg/m³</span></label><input type="number" id="vsa" placeholder="0–213" step="any" min="0" max="213"></div>
+      <div class="param-group"><label>Silica Fume <span class="unit">kg/m³</span></label><input type="number" id="sf" placeholder="0–65" step="any" min="0" max="65"></div>
+      <div class="param-group"><label>Metakaolin <span class="unit">kg/m³</span></label><input type="number" id="mk" placeholder="0–53" step="any" min="0" max="53"></div>
+      <div class="param-group"><label>Nano-Silica <span class="unit">kg/m³</span></label><input type="number" id="ns" placeholder="0–53" step="any" min="0" max="53"></div>
+
+      <div class="section-label" style="grid-column:1/-1; margin-top:6px;">Aggregate</div>
+      <div class="param-group"><label>Fine Aggregate <span class="unit">kg/m³</span></label><input type="number" id="fa" placeholder="617–693" step="any" min="617" max="693"></div>
+      <div class="param-group"><label>Coarse Aggregate <span class="unit">kg/m³</span></label><input type="number" id="ca" placeholder="950–1008" step="any" min="950" max="1008"></div>
+      <div></div><div></div><div></div>
+
+      <div class="section-label" style="grid-column:1/-1; margin-top:6px;">Water &amp; Admixture</div>
+      <div class="param-group"><label>Water <span class="unit">kg/m³</span></label><input type="number" id="w" placeholder="160–172" step="any" min="160" max="172"></div>
+      <div class="param-group"><label>Water/Binder <span class="unit">ratio</span></label><input type="number" id="wb" placeholder="0.3–0.4" step="any" min="0.3" max="0.4"></div>
+      <div class="param-group"><label>Superplasticizer <span class="unit">kg/m³</span></label><input type="number" id="sp" placeholder="0.6–1.5" step="any" min="0.6" max="1.5"></div>
+      <div></div><div></div>
+
+      <div class="section-label" style="grid-column:1/-1; margin-top:6px;">Estimated values of CS</div>
+      <div style="grid-column:1/-1; max-width:440px;">
+        <table id="csGrid" style="table-layout:fixed;">
+          <thead><tr><th style="text-align:left;">CS (MPa)</th><th style="text-align:center;">Minimum</th><th style="text-align:center;">Average</th><th style="text-align:center;">Maximum</th></tr></thead>
+          <tbody>
+            <tr><td>Age 7 days</td><td id="cs_1_1" style="text-align:center;">—</td><td id="cs_2_1" style="text-align:center;">—</td><td id="cs_3_1" style="text-align:center;">—</td></tr>
+            <tr><td>Age 28 days</td><td id="cs_1_2" style="text-align:center;">—</td><td id="cs_2_2" style="text-align:center;">—</td><td id="cs_3_2" style="text-align:center;">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+</div><!-- /left -->
+<!-- ── RIGHT COLUMN: Batch Panels + Citation ────────── -->
+<div style="display:flex; flex-direction:column; gap:10px;">
+
+  <!-- Known Dataset -->
+  <div class="card" style="margin-bottom:0;">
+    <div class="card-header"><div class="dot"></div>Known Dataset (Validation)</div>
+    <div class="card-body" style="padding:8px 12px;">
+      <!-- Row 1: both buttons -->
+      <div style="display:flex; align-items:center; gap:6px;">
+        <button class="btn btn-primary btn-sm" style="flex:1;" onclick="document.getElementById('knownFile').click()">Browse…</button>
+        <button class="btn btn-primary btn-sm" style="flex:1;" onclick="runKnown(); if(knownResults) downloadKnown();">Estimate &amp; Save</button>
+      </div>
+      <input type="file" id="knownFile" accept=".csv,.xlsx,.xls" style="display:none">
+      <!-- Row 2: R + RMSE metrics -->
+      <div style="display:flex; gap:8px; margin-top:5px; align-items:center;">
+        <div class="metric-box"><span class="m-label">R</span><span class="m-value" id="metR">—</span></div>
+        <div class="metric-box"><span class="m-label">RMSE</span><span class="m-value" id="metRMSE">—</span></div>
+      </div>
+      <!-- Row 3: status bar -->
+      <div id="knownStatus" class="status-bar" style="margin-top:4px; font-size:0.65rem;">No dataset uploaded.</div>
+      <div class="result-table-wrap" id="knownTableWrap" style="display:none">
+        <table id="knownTable">
+          <thead><tr><th>#</th><th>Actual CS</th><th>Predicted CS</th><th>Abs. Error</th></tr></thead>
+          <tbody id="knownTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Multiple Input Sets -->
+  <div class="card" style="margin-bottom:0;">
+    <div class="card-header"><div class="dot"></div>Multiple Input Sets</div>
+    <div class="card-body" style="padding:8px 12px;">
+      <!-- Row 1: both buttons -->
+      <div style="display:flex; align-items:center; gap:6px;">
+        <button class="btn btn-primary btn-sm" style="flex:1;" onclick="document.getElementById('multiFile').click()">Browse…</button>
+        <button class="btn btn-primary btn-sm" style="flex:1;" onclick="runMulti(); if(multiResults) downloadMulti();">Estimate &amp; Save</button>
+      </div>
+      <input type="file" id="multiFile" accept=".csv,.xlsx,.xls" style="display:none">
+      <!-- Row 2: status bar -->
+      <div id="multiStatus" class="status-bar" style="margin-top:5px; font-size:0.65rem;">No dataset uploaded.</div>
+      <div class="result-table-wrap" id="multiTableWrap" style="display:none; overflow-x:auto;">
+        <table id="multiTable" style="font-size:0.62rem;">
+          <thead><tr><th style="padding:5px 6px;">#</th><th style="padding:5px 6px;">7d Min</th><th style="padding:5px 6px;">7d Avg</th><th style="padding:5px 6px;">7d Max</th><th style="padding:5px 6px;">28d Min</th><th style="padding:5px 6px;">28d Avg</th><th style="padding:5px 6px;">28d Max</th></tr></thead>
+          <tbody id="multiTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Citation & Contact -->
+  <div class="card" style="margin-bottom:0; flex:1;">
+    <div class="card-header"><div class="dot"></div>Citation &amp; Contact</div>
+    <div class="card-body citation" style="padding:15px 14px;">
+      <p>DOI: xxxxxxxxxxxxxxx xxxxxxxxxxxxxxx xxxxxxxxxxxxxx.</p>
+      <p style="margin-top:6px;">Developed by <a href="https://scholar.google.com/citations?user=IClxEGkAAAAJ&hl=en&oi=ao" target="_blank" rel="noopener">Dr. Abidhan Bardhan</a> &nbsp;·&nbsp; <a href="mailto:abidhan@nitp.ac.in">abidhan@nitp.ac.in</a></p>
+    </div>
+  </div>
+
+</div><!-- /right column -->
+
+</div><!-- /outer grid -->
+
+<!-- ── BOTTOM: Notes full width ─────────────────────── -->
+<div style="margin-top:10px;">
+  <div class="card" style="margin-bottom:0;">
+    <div class="card-header"><div class="dot"></div>Notes &amp; Usage</div>
+    <div class="card-body notes-body">
+      <ol>
+        <li>Effective ranges of input parameters are mentioned inside the input fields.</li>
+        <li>For known dataset: upload an Excel/CSV file with input and output columns; columns must follow the order in note 3, with the measured compressive strength as the rightmost column (col 13). For multiple datasets: upload an Excel/CSV file with only the 10 input columns (W/B, Cement, Water, VSA, Silica Fume, Metakaolin, Nano-Silica, Fine Aggregate, Coarse Aggregate, Superplasticizer); CS for MAM 1, 2, 3 (Minimum, Average, Maximum) at Age 7 and 28 days is calculated automatically.</li>
+        <li><strong>Column order:</strong> W/B, Cement, Water, VSA, Silica Fume, Metakaolin, Nano-Silica, Fine Aggregate, Coarse Aggregate, Superplasticizer, MAM, Age (+ CS for known data).</li>
+      </ol>
+    </div>
+  </div>
+</div><!-- /bottom notes -->
+
+</main>
+
+<script>
+// ── EMBEDDED ELM MODEL (from elm_5.mat) ─────────────
+const MODEL = {"IW": [[-0.00043827990479950433, 4.294261238988273e-05, -8.181453911348578e-08, -0.6618882704556835, 1.8929412910435967e-07, -0.00023344598107597462, -0.022949908337960317, 0.028283486524384553, -9.132030956551034e-11, -0.007447489493671552, 4.0755974399735987e-11, 5.628875532876138e-05], [0.006581391465206488, 5.435974516533853e-10, -0.023054330383249416, 0.011918027907755655, 0.00010575929665621218, -4.13598246132707e-09, -0.014101155350007584, 0.17894619843349205, 0.059960794621293605, -0.009717544441048604, 0.0029887146293806747, 0.00023431844267948943], [-0.0001384742964530967, -0.06332977452555438, 1.2935328141632665e-06, -0.0011651467900786294, -0.012465813535659278, -0.00014410698382549348, -0.02427479748098059, 0.0038445682137465847, -0.01624805585839541, -1.7909207422381884e-06, -2.4891093386365597e-09, -0.00030863526983661234], [1.3937707766412204e-08, -0.0008502167209313316, 9.040238518395078e-05, -5.660246792105214e-11, 0.12209922347893576, 0.0024039560119976013, 0.12627399723490945, -5.738127567942094e-06, 0.0003088450533648377, 0.005165267390702742, 0.001301719186729814, -0.06437812143644901], [-9.535670854990653e-08, -0.14117598657310595, 1.8443739882785487e-05, 0.021164012053380914, 5.010198334428637e-06, 0.00015488786300739125, 0.0062313596214643935, 0.007015138666775769, 0.0013171625263537269, 0.07070723849541935, 0.01632261423985845, -0.005038826409703167], [-0.05440415413058828, -3.4681498568697596e-06, 0.004691861456815109, 0.0029130153229196404, 1.455433916519916e-06, -0.00018438220265122718, -0.00012188019624194678, 0.0008490511677518099, 0.000841759609366009, 0.004743499706444858, -0.00041009597952775076, 2.9062177100235787e-05], [-5.961599274662356e-08, -7.164078077154693e-05, 0.0060156047657377535, 0.0014880549737717808, 0.02044342529296353, -0.0010136009871747301, -0.013435823214156326, 2.6506752367502006e-09, -0.04889520302452725, 1.0663307122074686e-07, -0.0220062927179899, -3.3481865682280547e-06], [0.002261418238688788, -0.00010779063059672174, -0.25080270523652914, 0.00018327091614145252, 0.8890501454346486, -0.09824682944011794, -0.06387453289696685, -0.0017013190942914323, 0.009219996278810533, 0.02158506517473042, 1.6151731456380842e-06, -0.0002614176713204391], [-0.04925982025957323, 0.005824737254288695, -0.00015026640987443737, 4.864943174502842e-06, -0.0017440528143035981, -0.12333151549433075, -0.01809062832652902, 0.1522603955815296, -6.6196478617035065e-09, 0.013226738940055048, 0.006709059654302749, -0.0025814859861370176], [-0.002613400753668139, -0.0032682183961322882, 0.024704721425787807, -0.0018080190869047908, -0.03586748648102788, 8.29690945451259e-07, 0.44095932811719685, 0.00019370914549993211, 0.0003089616991895301, -0.9614319798991319, -2.5714533828521275e-07, -0.004807625296860498], [-0.010200781226969288, -0.18402906980071676, -0.0005058204851358835, -0.0002493276428461934, -0.1660619672006023, -0.0003150041363579173, 0.003687067015025531, 0.048362202943672966, 0.13229068987246226, 0.00010273198576834032, 8.467375625861409e-05, -0.0016233839062653411], [-1.2663887320757013e-06, 0.0007995953827465575, 0.03473770083230848, -0.005111655954204897, -0.0005557015278112976, 0.0006974138868320333, -0.3323177435820878, -5.7894440673523535e-05, 5.518333119446941e-06, 0.031063375219320472, 0.013097152040341098, -0.0006272702853327481], [-6.39541287494047e-06, 0.6650503395504115, -0.044884111741435105, 0.012586566533902365, 0.08728071176289502, 0.0002134787250507578, -0.0075448121245728006, -0.0013792278552078434, -0.0990442702033042, 0.0002672403017363387, -0.005477863777251316, 0.023306573739850452], [-0.00046692369695650976, -0.0001930152094964036, -7.318830279154083e-05, 0.583737616380253, 0.004878124228596866, 0.0002860195354622055, 0.004187875709945766, -0.010388767343231934, 0.08942805187899075, -6.711639107474178e-08, -0.0025714495924772447, -0.008487986555882494], [-0.0005844922051148418, 0.0013844905598318217, 3.8516898457627336e-05, -0.0007976495785923409, -0.0002797260977868496, 0.5622832459185165, 0.005262695865176174, 0.42134982550139044, -0.012273425118129616, 2.8980306448016743e-05, -0.009253483521680579, 2.5532882075829926e-12], [9.478321741191996e-06, 0.0033184875858500726, 9.33112268085504e-08, 0.00023350032859340656, -0.00020362444155163032, -0.0002651969205399358, 0.025776882580934576, -0.03847006898552716, 0.007152843144604045, 0.011168890310418157, 0.0005195385755930589, -1.489732468846969e-09], [-0.006511387179892144, -0.001560304702860357, -0.012623004281179084, 0.0017459153350313126, 2.4983491628010323e-05, 0.00024155259618074393, -0.013079684784303507, -0.07376561579977131, -9.329830845366829e-05, 0.006844119962060976, -0.007758909772458291, 6.942452436032736e-06], [0.014862432737313686, 0.009181625930572947, -0.025188504412043282, 0.0015346029877148614, 0.0015834449455300928, -0.0009409546139308974, -0.0002060231156790197, 0.00011337444328728684, 4.2147426465475796e-05, 0.0023499161767972384, -0.007205260515967246, -0.01699588751450333], [0.01664785148481842, -4.7634923034532693e-07, 0.0071608973299561425, -0.004567162645848407, 0.0010420117556359553, -0.00027727630059934687, 0.0032600395191704702, -0.008512598218686506, -0.025948491875324838, 0.003852763000172221, -0.000388948680718469, -0.005529040139176727], [-0.000262844925982968, 5.73056256790946e-08, 0.0076928630365814725, 0.0476428146571927, 0.15714799009690583, 0.013192377313111837, -9.160206203552079e-05, -0.0011177148686249755, -0.029164984098710066, -0.5108069428042518, 0.06055194996653955, 3.3248522528495066e-08], [-0.12100044299424705, 0.020261021215953745, 0.04498861471963906, -0.030457501960433755, 0.29701983872156096, 0.03089413010472671, 0.007647446959621054, 0.008162779491292299, -0.04124349948961338, 0.003216750446214613, -0.0003642677225056512, 0.054876116706734965], [4.776921298517768e-07, -8.2823473657306e-05, 2.466028109945907e-06, -0.0036550472791539936, 5.495112776399611e-05, 0.0012095667749576718, -0.00019167530105131204, -0.0006422926877750781, 0.000435514312618032, -0.0007481865465195656, 0.03168315144602876, 0.0035592744931791844]], "B": [-0.43769767085046996, 0.017110719719483913, 3.1715212673816204e-05, 0.015096073435310775, 1.7227231888141982e-06, -0.014549247406017114, -0.0002650028059626111, 0.08641794922911519, -0.024209350036660943, 3.898339751277842e-06, 1.2458020327506433e-06, 3.087669799957436e-05, 0.0003153963505377266, -0.0007607290577048346, -0.0005553226531999743, 0.007667142072570928, -3.9839380678559685e-06, 0.004327434076942362, 0.5827182918456423, 0.000681878390107553, 2.740355713052125e-13, 0.0011353032926663743], "LW": [8.051403606561225, -874.4135320717742, -491.5720563804658, -385.1361600073856, -266.59320305569565, -273.8643281052093, 1717.2876770617222, 26.08226223475555, 89.80621238335344, -12.382876385347437, 371.48125821460275, -90.08332260812101, -87.44699201443751, 14.172173901651798, 17.647276001224157, -96.37573066385801, -2234.4317866627325, 2562.387353016747, -1299.8277877919988, -39.73503912116605, 172.94175208134934, 1536.3804696319241]};
+
+// ── NORMALISATION PARAMETERS ─────────────────────────
+// Order matches the model's input weights (IW columns)
+const KEYS=['wb','c','w','vsa','sf','mk','ns','fa','ca','sp','mam','age'];
+const NORM = {
+  wb:  {min:0.30,  max:0.40},
+  c:   {min:215,   max:533},
+  w:   {min:160,   max:172},
+  vsa: {min:0,     max:213},
+  sf:  {min:0,     max:65},
+  mk:  {min:0,     max:53},
+  ns:  {min:0,     max:53},
+  fa:  {min:617,   max:693},
+  ca:  {min:950,   max:1008},
+  sp:  {min:0.60,  max:1.50},
+  mam: {min:1,     max:3},
+  age: {min:1,     max:2},
+  cs:  {min:32.90, max:96.60},
+};
+const NIN=KEYS.length; // 12
+
+function norm(v,p){const {min,max}=NORM[p];return ((v-min)/(max-min))*2-1;}
+function denorm(v,p){const {min,max}=NORM[p];return ((v+1)*(max-min)/2)+min;}
+function sigmoid(x){return 1/(1+Math.exp(-x));}
+
+function elmPredict(vec){
+  const {IW,B,LW}=MODEL; const n=IW.length; let out=0;
+  for(let i=0;i<n;i++){
+    let s=B[i];
+    for(let j=0;j<NIN;j++) s+=IW[i][j]*vec[j];
+    out+=sigmoid(s)*LW[i];
+  }
+  return Math.round(denorm(out,'cs')*100)/100;
+}
+function buildInputVec(vals){return KEYS.map((k,i)=>norm(vals[i],k));}
+
+// ── SINGLE PREDICTION ────────────────────────────────
+const SINGLE_KEYS=['wb','c','w','vsa','sf','mk','ns','fa','ca','sp'];
+function tryPredict(){
+  const vals=SINGLE_KEYS.map(id=>{
+    const el=document.getElementById(id);
+    const v=parseFloat(el.value);
+    el.classList.remove('out-of-range','valid');
+    if(!isNaN(v)){
+      if(v<parseFloat(el.min)||v>parseFloat(el.max)) el.classList.add('out-of-range');
+      else el.classList.add('valid');
+    }
+    return v;
+  });
+  const ready=!vals.some(v=>isNaN(v));
+  for(let mam=1;mam<=3;mam++) for(let age=1;age<=2;age++){
+    const cell=document.getElementById(`cs_${mam}_${age}`);
+    cell.textContent=ready?elmPredict(buildInputVec([...vals,mam,age])).toFixed(2):'—';
+  }
+}
+SINGLE_KEYS.forEach(id=>document.getElementById(id).addEventListener('input',tryPredict));
+
+// ── CSV PARSER (simple, handles quoted fields) ────────
+function parseCSV(text){
+  const lines=text.trim().split(/\r?\n/);
+  return lines.map(l=>{
+    const cols=[]; let cur=''; let inQ=false;
+    for(let i=0;i<l.length;i++){
+      if(l[i]==='"'){inQ=!inQ;}
+      else if(l[i]===','&&!inQ){cols.push(cur.trim());cur='';}
+      else cur+=l[i];
+    }
+    cols.push(cur.trim());
+    return cols;
+  });
+}
+
+function isHeader(row){ return row.some(c=>isNaN(parseFloat(c))); }
+
+// ── FILE READER HELPER (CSV + Excel) ──────────────────
+function readFileAsRows(file, callback){
+  const name=file.name.toLowerCase();
+  if(name.endsWith('.xlsx')||name.endsWith('.xls')){
+    const rd=new FileReader();
+    rd.onload=e=>{
+      try{
+        const data=new Uint8Array(e.target.result);
+        const wb=XLSX.read(data,{type:'array'});
+        const ws=wb.Sheets[wb.SheetNames[0]];
+        const arr=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+        callback(arr.map(row=>row.map(c=>String(c))));
+      }catch(err){callback(null,err.message);}
+    };
+    rd.readAsArrayBuffer(file);
+  }else{
+    const rd=new FileReader();
+    rd.onload=e=>callback(parseCSV(e.target.result));
+    rd.readAsText(file);
+  }
+}
+
+// ── KNOWN DATASET ─────────────────────────────────────
+let knownData=null, knownResults=null;
+document.getElementById('knownFile').addEventListener('change',function(){
+  const f=this.files[0]; if(!f)return;
+  readFileAsRows(f,(rows,err)=>{
+    if(!rows){setStatus('knownStatus','err','✗ Could not read file: '+(err||'unknown error'));knownData=null;return;}
+    const data=isHeader(rows[0])?rows.slice(1):rows;
+    const valid=data.filter(r=>r.length>=13&&r.slice(0,13).every(c=>!isNaN(parseFloat(c))));
+    if(valid.length===0){
+      setStatus('knownStatus','err','✗ No valid rows found. Expected 13 numeric columns.'); knownData=null; return;
+    }
+    knownData=valid.map(r=>r.slice(0,13).map(parseFloat));
+    setStatus('knownStatus','ok',`✓ Loaded ${valid.length} row(s) from "${f.name}". Click "Estimate & Save".`);
+  });
+});
+
+function runKnown(){
+  if(!knownData){setStatus('knownStatus','err','✗ Upload a dataset first.');return;}
+  const model='ELM';
+  const actual=[]; const pred=[];
+  for(const row of knownData){
+    const vec=buildInputVec(row.slice(0,12));
+    actual.push(row[12]);
+    pred.push(elmPredict(vec));
+  }
+  // R and RMSE
+  const n=actual.length;
+  const ma=actual.reduce((a,b)=>a+b,0)/n;
+  const mp=pred.reduce((a,b)=>a+b,0)/n;
+  let num=0,da=0,dp=0,mse=0;
+  for(let i=0;i<n;i++){num+=(actual[i]-ma)*(pred[i]-mp);da+=(actual[i]-ma)**2;dp+=(pred[i]-mp)**2;mse+=(actual[i]-pred[i])**2;}
+  const R=(num/Math.sqrt(da*dp)).toFixed(4);
+  const RMSE=Math.sqrt(mse/n).toFixed(4);
+  document.getElementById('metR').textContent=R;
+  document.getElementById('metRMSE').textContent=RMSE;
+  knownResults={actual,pred,model};
+  // Table
+  const tbody=document.getElementById('knownTableBody');
+  tbody.innerHTML='';
+  for(let i=0;i<n;i++){
+    const tr=document.createElement('tr');
+    const err=Math.abs(actual[i]-pred[i]).toFixed(2);
+    tr.innerHTML=`<td>${i+1}</td><td>${actual[i].toFixed(2)}</td><td>${pred[i].toFixed(2)}</td><td>${err}</td>`;
+    tbody.appendChild(tr);
+  }
+  document.getElementById('knownTableWrap').style.display='';
+  setStatus('knownStatus','ok',`✓ Prediction complete using ${model}. R=${R}, RMSE=${RMSE}`);
+}
+
+function downloadKnown(){
+  if(!knownResults){setStatus('knownStatus','warn','Run prediction first.');return;}
+  const {actual,pred,model}=knownResults;
+  let csv='Row,Actual_CS,Predicted_CS,Absolute_Error\n';
+  for(let i=0;i<actual.length;i++) csv+=`${i+1},${actual[i].toFixed(2)},${pred[i].toFixed(2)},${Math.abs(actual[i]-pred[i]).toFixed(2)}\n`;
+  triggerDownload(csv,`cs_known_results_${model}.csv`);
+}
+
+// ── MULTIPLE DATASETS ─────────────────────────────────
+let multiData=null, multiResults=null;
+document.getElementById('multiFile').addEventListener('change',function(){
+  const f=this.files[0]; if(!f)return;
+  readFileAsRows(f,(rows,err)=>{
+    if(!rows){setStatus('multiStatus','err','✗ Could not read file: '+(err||'unknown error'));multiData=null;return;}
+    const data=isHeader(rows[0])?rows.slice(1):rows;
+    const valid=data.filter(r=>r.length>=10&&r.slice(0,10).every(c=>!isNaN(parseFloat(c))));
+    if(valid.length===0){setStatus('multiStatus','err','✗ No valid rows found. Expected 10 numeric columns.');multiData=null;return;}
+    multiData=valid.map(r=>r.slice(0,10).map(parseFloat));
+    setStatus('multiStatus','ok',`✓ Loaded ${valid.length} row(s) from "${f.name}". Click "Estimate & Save".`);
+  });
+});
+
+function runMulti(){
+  if(!multiData){setStatus('multiStatus','err','✗ Upload a dataset first.');return;}
+  const model='ELM';
+  // order: 7d (Min,Avg,Max) then 28d (Min,Avg,Max); Min/Avg/Max = MAM 1/2/3, 7d/28d = Age 1/2
+  const pred=multiData.map(row=>{
+    const out=[];
+    for(let age=1;age<=2;age++) for(let mam=1;mam<=3;mam++)
+      out.push(elmPredict(buildInputVec([...row,mam,age])));
+    return out;
+  });
+  multiResults={pred,model};
+  const tbody=document.getElementById('multiTableBody');
+  tbody.innerHTML='';
+  pred.forEach((p,i)=>{const tr=document.createElement('tr');tr.innerHTML=`<td>${i+1}</td>`+p.map(v=>`<td>${v.toFixed(2)}</td>`).join('');tbody.appendChild(tr);});
+  document.getElementById('multiTableWrap').style.display='';
+  setStatus('multiStatus','ok',`✓ Predicted CS for ${pred.length} row(s) using ${model}.`);
+}
+
+function downloadMulti(){
+  if(!multiResults){setStatus('multiStatus','warn','Run prediction first.');return;}
+  const {pred,model}=multiResults;
+  let csv='W/B,C,W,VSA,SF,MK,NS,FA,CA,SP,CS_7d (Min),CS_7d (Avg),CS_7d (Max),CS_28d (Min),CS_28d (Avg),CS_28d (Max)\n';
+  pred.forEach((p,i)=>csv+=multiData[i].join(',')+','+p.map(v=>v.toFixed(2)).join(',')+'\n');
+  triggerDownload(csv,`cs_multi_results_${model}.csv`);
+}
+
+// ── UTILITIES ─────────────────────────────────────────
+function setStatus(id,cls,msg){
+  const el=document.getElementById(id);
+  el.className='status-bar'+(cls?' '+cls:'');
+  el.textContent=msg;
+}
+function triggerDownload(csv,filename){
+  const blob=new Blob([csv],{type:'text/csv'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=filename;
+  a.click();
+}
+</script>
+</body>
+</html>
